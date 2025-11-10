@@ -14,11 +14,11 @@ permissions:
   contents: write
 
 env:
-  GO_VERSION: '1.25.x'  # keep Staticcheck and deps happy
+  GO_VERSION: '1.25.x'   # single source of truth for your build/test toolchain
 
 jobs:
   test:
-    name: Run tests
+    name: Tests + Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -33,12 +33,16 @@ jobs:
       - name: Unit tests
         run: go test -v ./...
 
-      - name: Vet & static analysis
-        run: |
-          go vet ./...
-          # Pin Staticcheck to a stable, Go 1.25-compatible release
-          go install honnef.co/go/tools/cmd/staticcheck@2024.1.1
-          staticcheck ./...
+      - name: go vet
+        run: go vet ./...
+
+      # Use Staticcheck's action (ships compatible toolchain). No more version roulette.
+      - name: staticcheck
+        uses: dominikh/staticcheck-action@v1
+        with:
+          version: "2024.1.1"   # stable, modern
+          install-go: true      # let the action manage its own Go toolchain for staticcheck
+          working-directory: "."  # optional
 
   build:
     name: Build binaries
