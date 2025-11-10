@@ -1,0 +1,23 @@
+# Risk weights: positive numbers add pain
+weights:
+  CHAIN_VERIFY_FAILED: 50
+  NO_CERTS: 50
+  EXPIRY_SOON_WARN: 10
+  EXPIRY_SOON_CRIT: 40
+  TLS_VERSION_OLD: 40
+  CBC_ON_TLS12: 10
+  WEAK_CIPHER: 40
+  OCSP_REVOKED: 80
+  OCSP_UNKNOWN: 10
+  OCSP_STAPLE_STALE: 15
+  HSTS_MISSING: 8
+  HSTS_SHORT_MAXAGE: 6
+  HSTS_NO_SUBDOMAINS: 2
+
+# Score bands map total score to a grade 1..5 (5 worst)
+bands:
+  - { min: 0,   max: 5,   grade: 1 }
+  - { min: 6,   max: 20,  grade: 2 }
+  - { min: 21,  max: 45,  grade: 3 }
+  - { min: 46,  max: 80,  grade: 4 }
+  - { min: 81,  max: 1000, grade: 5 }
