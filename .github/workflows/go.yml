@@ -39,7 +39,7 @@ jobs:
       - name: staticcheck (container fallback)
         uses: addnab/docker-run-action@v3
         with:
-          image: ghcr.io/dominikh/staticcheck:2024.1.1
+          image: ghcr.io/dominikh/staticcheck:2025.1.1
           options: -v ${{ github.workspace }}:/work -w /work
           run: |
             staticcheck ./...
