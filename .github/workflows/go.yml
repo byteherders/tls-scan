@@ -7,22 +7,21 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
-  release:
-    types: [created]
 
 permissions:
   contents: write
 
 env:
-  GO_VERSION: '1.25.x'   # single source of truth for your build/test toolchain
+  GO_VERSION: '1.25.x'
+  STATICCHECK_VERSION: '2025.1.1'
+  # Force using the configured toolchain; don't let Go auto-download another one.
+  GOTOOLCHAIN: 'local'
 
 jobs:
   test:
-    name: Tests + Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v5
@@ -30,22 +29,29 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Unit tests
+      - name: Show toolchain
+        run: |
+          go version
+          go env GOVERSION GOTOOLCHAIN GOEXE
+
+      - name: go test
         run: go test -v ./...
 
       - name: go vet
         run: go vet ./...
 
-      - name: staticcheck (container fallback)
-        uses: addnab/docker-run-action@v3
-        with:
-          image: ghcr.io/dominikh/staticcheck:2025.1.1
-          options: -v ${{ github.workspace }}:/work -w /work
-          run: |
-            staticcheck ./...
+      - name: Install Staticcheck from source with Go ${{ env.GO_VERSION }}
+        run: |
+          # Build staticcheck with the same Go that builds your project.
+          go install honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Staticcheck
+        run: |
+          staticcheck -version
+          staticcheck ./...
 
   build:
-    name: Build binaries
     runs-on: ubuntu-latest
     needs: test
     strategy:
@@ -53,8 +59,7 @@ jobs:
         goos: [linux, darwin, windows]
         goarch: [amd64, arm64]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v5
@@ -62,31 +67,26 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Build
+      - name: Build cross-platform
         shell: bash
         run: |
           mkdir -p dist
-          BIN="tlscan-${{ matrix.goos }}-${{ matrix.goarch }}"
-          EXT=""
-          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
+          ext=""
+          [ "${{ matrix.goos }}" = "windows" ] && ext=".exe"
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
-            go build -trimpath -ldflags="-s -w" -o "dist/${BIN}${EXT}" ./cmd/tlscan
-          echo "Built dist/${BIN}${EXT}"
+            go build -trimpath -ldflags="-s -w" -o "dist/tls-scan-${{ matrix.goos }}-${{ matrix.goarch }}${ext}" ./cmd/tls-scan
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: tlscan-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: tls-scan-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*
 
   release:
-    name: Tag & Release
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Auto-bump tag
         id: tag
@@ -102,20 +102,14 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: List artifacts
-        run: ls -lah dist
-
       - name: Generate SHA256 checksums
         shell: bash
         run: |
           cd dist
           rm -f SHA256SUMS.txt
           for f in *; do
-            if [ -f "$f" ]; then
-              sha256sum "$f" >> SHA256SUMS.txt
-            fi
+            [ -f "$f" ] && sha256sum "$f" >> SHA256SUMS.txt
           done
-          echo "---- SHA256SUMS.txt ----"
           cat SHA256SUMS.txt
 
       - name: Create GitHub Release
@@ -124,7 +118,6 @@ jobs:
           tag_name: ${{ steps.tag.outputs.new_tag }}
           name: Release ${{ steps.tag.outputs.new_tag }}
           body: |
-            🛠 Auto-generated release for ${{ steps.tag.outputs.new_tag }}
+            Auto-generated release for ${{ steps.tag.outputs.new_tag }}
             Includes cross-platform binaries and SHA256 checksums.
-          files: |
-            dist/*
+          files: dist/*
