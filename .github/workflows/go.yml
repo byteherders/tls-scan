@@ -13,18 +13,22 @@ on:
 permissions:
   contents: write
 
+env:
+  GO_VERSION: '1.24.x'
+
 jobs:
   test:
     name: Run tests
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: Set up Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23.x'
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
 
       - name: Unit tests
         run: go test -v ./...
@@ -44,13 +48,14 @@ jobs:
         goos: [linux, darwin, windows]
         goarch: [amd64, arm64]
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: Set up Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23.x'
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
 
       - name: Build
         shell: bash
@@ -75,7 +80,7 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/main'
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Auto-bump tag
