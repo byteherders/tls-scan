@@ -13,7 +13,9 @@ permissions:
 
 env:
   GO_VERSION: '1.25.x'
-  STATICCHECK_TAG: '2025.1.1'   # pin; see https://github.com/dominikh/go-tools/tags
+  STATICCHECK_VERSION: '2025.1.1'
+  # Force using the configured toolchain; don't let Go auto-download another one.
+  GOTOOLCHAIN: 'local'
 
 jobs:
   test:
@@ -21,11 +23,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: Set up Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+
+      - name: Show toolchain
+        run: |
+          go version
+          go env GOVERSION GOTOOLCHAIN GOEXE
 
       - name: go test
         run: go test -v ./...
@@ -33,32 +40,16 @@ jobs:
       - name: go vet
         run: go vet ./...
 
-      - name: Staticcheck (download official binary)
-        shell: bash
+      - name: Install Staticcheck from source with Go ${{ env.GO_VERSION }}
         run: |
-          set -euo pipefail
-          os=$(uname -s | tr '[:upper:]' '[:lower:]')
-          arch=$(uname -m)
-          case "$arch" in
-            x86_64|amd64) arch=amd64 ;;
-            aarch64|arm64) arch=arm64 ;;
-            *) echo "Unsupported arch: $arch" >&2; exit 1 ;;
-          esac
+          # Build staticcheck with the same Go that builds your project.
+          go install honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
-          base="https://github.com/dominikh/go-tools/releases/download/${STATICCHECK_TAG}"
-          tgz="staticcheck_${os}_${arch}.tar.gz"
-          url="${base}/${tgz}"
-
-          echo "Fetching ${url}"
-          curl -fsSL "${url}" -o "${tgz}"
-
-          # Optional integrity check if your net isn’t allergic to small files:
-          # curl -fsSL "${url}.sha256" -o "${tgz}.sha256"
-          # sha256sum -c "${tgz}.sha256" || shasum -a 256 -c "${tgz}.sha256"
-
-          tar -xzf "${tgz}"
-          ./staticcheck/staticcheck -version
-          ./staticcheck/staticcheck ./...
+      - name: Staticcheck
+        run: |
+          staticcheck -version
+          staticcheck ./...
 
   build:
     runs-on: ubuntu-latest
@@ -70,13 +61,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: Set up Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Build
+      - name: Build cross-platform
         shell: bash
         run: |
           mkdir -p dist
@@ -89,3 +80,44 @@ jobs:
         with:
           name: tls-scan-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auto-bump tag
+        id: tag
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          release_branches: main
+          default_bump: patch
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate SHA256 checksums
+        shell: bash
+        run: |
+          cd dist
+          rm -f SHA256SUMS.txt
+          for f in *; do
+            [ -f "$f" ] && sha256sum "$f" >> SHA256SUMS.txt
+          done
+          cat SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.new_tag }}
+          name: Release ${{ steps.tag.outputs.new_tag }}
+          body: |
+            Auto-generated release for ${{ steps.tag.outputs.new_tag }}
+            Includes cross-platform binaries and SHA256 checksums.
+          files: dist/*
