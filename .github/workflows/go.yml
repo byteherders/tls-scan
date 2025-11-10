@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 env:
-  GO_VERSION: '1.24.x'
+  GO_VERSION: '1.25.x'  # keep Staticcheck and deps happy
 
 jobs:
   test:
@@ -36,7 +36,8 @@ jobs:
       - name: Vet & static analysis
         run: |
           go vet ./...
-          go install honnef.co/go/tools/cmd/staticcheck@latest
+          # Pin Staticcheck to a stable, Go 1.25-compatible release
+          go install honnef.co/go/tools/cmd/staticcheck@2024.1.1
           staticcheck ./...
 
   build:
