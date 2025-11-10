@@ -38,5 +38,7 @@ func TestGradeResultBands(t *testing.T) {
 	if g < 1 || g > 5 {
 		t.Fatalf("grade out of range: %d", g)
 	}
-	fmt.Sprintf("") // silence imports if needed
+
+	// harmless use of fmt to keep it imported
+	_ = fmt.Sprintf("grade=%d", g)
 }
