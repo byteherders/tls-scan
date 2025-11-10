@@ -148,7 +148,7 @@ Every bit keeps the caffeine flowing and the code linted.
 
 ## 🧑‍💻 License
 
-MIT License © [Tom Herder of Byteherder](https://github.com/byteherders)
+GPL v3 © [Tom Herder of Byteherder](https://github.com/byteherders)
 
 ### TL;DR
 One binary, full TLS sanity check.  
