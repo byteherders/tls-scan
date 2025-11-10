@@ -36,13 +36,22 @@ jobs:
       - name: go vet
         run: go vet ./...
 
-      - name: staticcheck (container fallback)
-        uses: addnab/docker-run-action@v3
-        with:
-          image: ghcr.io/dominikh/staticcheck:2025.1.1
-          options: -v ${{ github.workspace }}:/work -w /work
-          run: |
-            staticcheck ./...
+      - name: Staticcheck (download binary)
+        shell: bash
+        run: |
+          set -euo pipefail
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          ARCH=$(uname -m)
+          case "$ARCH" in
+            x86_64) ARCH=amd64 ;;
+            aarch64) ARCH=arm64 ;;
+          esac
+          SC_VER="2024.1.1"
+          TARBALL="staticcheck_${SC_VER}_${OS}_${ARCH}.tar.gz"
+          BASEURL="https://github.com/dominikh/go-tools/releases/download/${SC_VER}"
+          curl -sSfL "${BASEURL}/${TARBALL}" -o "${TARBALL}"
+          tar -xzf "${TARBALL}"
+          ./staticcheck/staticcheck ./...
 
   build:
     name: Build binaries
