@@ -104,8 +104,6 @@ Risks: none
 ]
 ```
 
----
-
 ## 📜 Custom Grading Policy
 
 You can define your own grading thresholds and weights in YAML:
@@ -135,6 +133,7 @@ go test ./...
 ```
 
 GitHub Actions CI runs on every push:
+
 ![Build](https://github.com/byteherders/tls-scan/actions/workflows/go.yml/badge.svg
 
 ## 💖 Support Development
