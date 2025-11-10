@@ -36,13 +36,13 @@ jobs:
       - name: go vet
         run: go vet ./...
 
-      # Use Staticcheck's action (ships compatible toolchain). No more version roulette.
-      - name: staticcheck
-        uses: dominikh/staticcheck-action@v1
+      - name: staticcheck (container fallback)
+        uses: addnab/docker-run-action@v3
         with:
-          version: "2024.1.1"   # stable, modern
-          install-go: true      # let the action manage its own Go toolchain for staticcheck
-          working-directory: "."  # optional
+          image: ghcr.io/dominikh/staticcheck:2024.1.1
+          options: -v ${{ github.workspace }}:/work -w /work
+          run: |
+            staticcheck ./...
 
   build:
     name: Build binaries
