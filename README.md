@@ -141,7 +141,7 @@ GitHub Actions CI runs on every push:
 If tls-scan saved you from another 3 AM certificate panic — maybe buy me a coffee.
 
 - ☕ [Sponsor via GitHub](https://github.com/sponsors/byteherders)  
-- 💰 [PayPal.me/yourhandle](https://paypal.me/byteherder)  
+- 💰 [PayPal.me/byteherder](https://paypal.me/byteherder)  
 - 🧡 [Ko-fi](https://ko-fi.com/byteherder)
 
 Every bit keeps the caffeine flowing and the code linted.
