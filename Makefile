@@ -14,6 +14,12 @@ MAIN_PKG    ?= ./cmd/tls-scan
 PKGS        := $(shell go list ./... | grep -v /vendor/)
 DIST_DIR    ?= dist
 
+# --- Docker image ---
+GOOS ?= linux
+GOARCH ?= amd64
+APP_NAME = tls-scan
+DOCKER_IMAGE = $(APP_NAME):latest
+
 # --- Build metadata (best-effort if git not present) ---
 VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo v0.0.0)
 COMMIT      ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo 0000000)
@@ -33,7 +39,7 @@ CGO_ENABLED ?= 0
 # Cross-compile matrix (expand if needed)
 XC_OS_ARCH  ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: help tools fmt vet lint test cover build run install tidy clean release xbuild
+.PHONY: help tools fmt vet lint test cover build run install tidy clean docker release xbuild
 
 default: help
 
@@ -50,6 +56,7 @@ help:
 	@echo "  install   go install $(MAIN_PKG)"
 	@echo "  tidy      go mod tidy"
 	@echo "  release   Cross-compile into ./$(DIST_DIR)"
+	@echo "  docker    Create a minimal docker image"
 	@echo "  clean     Remove build artifacts"
 
 tools:
@@ -106,6 +113,16 @@ install:
 tidy:
 	@echo "Tidying modules..."
 	@go mod tidy
+
+docker:
+	@if ! command -v docker >/dev/null 2>&1; then \
+		echo "❌ Docker not found. Please install Docker first."; exit 1; \
+	fi
+	@echo "🔨 Building Linux/amd64 binary for Docker image..."
+	GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o ./dist/$(APP_NAME) ./cmd/$(APP_NAME)
+	@echo "🐋 Building Docker image $(DOCKER_IMAGE)..."
+	docker build -t $(DOCKER_IMAGE) .
+	@echo "✅ Docker image built: $(DOCKER_IMAGE)"
 
 clean:
 	@echo "Cleaning..."
